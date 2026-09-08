@@ -27,19 +27,6 @@
                 portfolio_grid.shuffle('shuffle', $(this).attr('data-group') );
             });
 
-            // Cards are measured for layout as soon as their images finish
-            // loading, which can be before the webfont swaps in and changes
-            // text height. Re-measure once fonts are actually ready so cards
-            // don't overlap.
-            if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(function () {
-                    portfolio_grid.shuffle('update');
-                });
-            }
-            $(window).on('load', function () {
-                portfolio_grid.shuffle('update');
-            });
-
         }
     }
     // /Portfolio subpage filters
@@ -170,11 +157,36 @@
             $('#blog-sidebar').toggleClass('open');
         });
 
-        // Initialize Portfolio grid
+        // Initialize Portfolio grid. Shuffle.js measures each card's
+        // rendered height once, on init, to position it - so if a card's
+        // height changes afterwards (e.g. the webfont finishes swapping in
+        // and reflows the text taller), Shuffle has no way to know and
+        // cards end up overlapping. document.fonts.ready isn't a reliable
+        // signal to wait for here either: Google Fonts registers several
+        // weights/styles that are never actually used on this page, and
+        // those never resolve, so the promise can hang indefinitely.
+        // Instead, watch every card with a ResizeObserver and re-run
+        // Shuffle's layout whenever a card's own size actually changes,
+        // for whatever reason.
         var $portfolio_container = $(".portfolio-grid");
-        $portfolio_container.imagesLoaded(function () {
-            portfolio_init(this);
-        });
+        if ($portfolio_container.length) {
+            $portfolio_container.imagesLoaded(function () {
+                portfolio_init();
+
+                if (window.ResizeObserver) {
+                    var relayoutTimer = null;
+                    var ro = new ResizeObserver(function () {
+                        clearTimeout(relayoutTimer);
+                        relayoutTimer = setTimeout(function () {
+                            $portfolio_container.shuffle('update');
+                        }, 50);
+                    });
+                    $portfolio_container.find('> figure').each(function () {
+                        ro.observe(this);
+                    });
+                }
+            });
+        }
 
         // Blog grid init
         var $container = $(".blog-masonry");
