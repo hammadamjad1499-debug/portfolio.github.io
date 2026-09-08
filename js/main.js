@@ -27,6 +27,19 @@
                 portfolio_grid.shuffle('shuffle', $(this).attr('data-group') );
             });
 
+            // Cards are measured for layout as soon as their images finish
+            // loading, which can be before the webfont swaps in and changes
+            // text height. Re-measure once fonts are actually ready so cards
+            // don't overlap.
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function () {
+                    portfolio_grid.shuffle('update');
+                });
+            }
+            $(window).on('load', function () {
+                portfolio_grid.shuffle('update');
+            });
+
         }
     }
     // /Portfolio subpage filters
